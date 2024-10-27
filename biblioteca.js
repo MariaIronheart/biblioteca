@@ -45,7 +45,7 @@ function clearFields() {
   synopsis.value = ""
 }
 
-function createCard(bookCard, bookName, bookAuthor, bookPublisher, numberOfPages, bookCover) {
+function createCard(bookCard, bookName, bookAuthor, bookPublisher, numberOfPages, bookCover, isLoaned, loanedTo) {
   bookCard.className = bookName
   bookCard.innerHTML = `
     <p id="bookTitle">${bookName}</p>
@@ -53,7 +53,9 @@ function createCard(bookCard, bookName, bookAuthor, bookPublisher, numberOfPages
     Autor: ${bookAuthor}
     <br>Editora: ${bookPublisher}
     <br>Págs: ${numberOfPages}
+    <br>Status: ${isLoaned ? `Emprestado para ${loanedTo}` : "Disponível"}
     <button id="btnSinopsys">Sinopse</button>
+    <button id="btnLoan">${isLoaned ? "Devolver" : "Emprestar"}</button>
     <button id="btnRemove">Remover</button>
     `
 }
@@ -62,78 +64,96 @@ function appendElements(divSelect, bookCard) {
   const btnCloseModal = document.querySelector("#btnCloseModal")
   divSelect.append(bookCard)
   divSelect.addEventListener("click", showSynopsis)
+  divSelect.addEventListener("click", handleLoan)
   btnCloseModal.addEventListener("click", closeModal)
   window.addEventListener("click", closeModalWindow)
 }
 
-function removeCard(parentDiv) {
-  return function remove(event) {
-    if (event.target.id === "btnRemove") {
-      parentDiv.removeChild(event.target.parentNode)
-      if (allBooks.splice(findBook(), 1)) {
-        alert(`Livro "${event.target.parentNode.className}" removido com sucesso!`)
+function handleLoan(event) {
+  if (event.target.id === "btnLoan") {
+    const bookIndex = findBook();
+    const book = allBooks[bookIndex];
+
+    if (book.isLoaned) {
+      // Devolução do livro
+      book.isLoaned = false;
+      book.loanedTo = null;
+      alert(`Livro "${book.bookName}" foi devolvido com sucesso!`);
+    } else {
+      // Empréstimo do livro
+      const user = prompt("Digite o nome do usuário que deseja emprestar o livro:");
+      if (user) {
+        book.isLoaned = true;
+        book.loanedTo = user;
+        alert(`Livro "${book.bookName}" foi emprestado para ${user}.`);
       }
     }
+    updateBookList();
   }
+}
+
+function updateBookList() {
+  const listOfAllBooks = document.querySelector("#listOfAllBooks");
+  listOfAllBooks.innerHTML = ""; // Limpar a lista para atualização
+
+  if (allBooks.length === 0) {
+    listOfAllBooks.innerHTML = "<p id='emptyBookList'>Nenhum livro cadastrado</p>";
+    return;
+  }
+
+  allBooks.forEach(book => {
+    const bookCard = document.createElement("div");
+    createCard(bookCard, book.bookName, book.bookAuthor, book.bookPublisher, book.numberOfPages, book.bookCover, book.isLoaned, book.loanedTo);
+    appendElements(listOfAllBooks, bookCard);
+  });
 }
 
 function registerBook() {
-  const listOfAllBooks = document.querySelector("#listOfAllBooks")
-  const bookName = document.querySelector("#bookName").value
-  const bookAuthor = document.querySelector("#bookAuthor").value
-  const bookPublisher = document.querySelector("#bookPublisher").value
-  const numberOfPages = Number(document.querySelector("#numberOfPages").value)
-  const bookCover = document.querySelector("#bookCover").value
+  const bookName = document.querySelector("#bookName").value;
+  const bookAuthor = document.querySelector("#bookAuthor").value;
+  const bookPublisher = document.querySelector("#bookPublisher").value;
+  const numberOfPages = Number(document.querySelector("#numberOfPages").value);
+  const bookCover = document.querySelector("#bookCover").value;
 
-  event.preventDefault()
+  event.preventDefault();
 
-  allBooks.push(
-    {
-      bookName,
-      bookAuthor,
-      bookPublisher,
-      numberOfPages,
-      bookCover,
-      synopsis: synopsis.value
-    })
+  allBooks.push({
+    bookName,
+    bookAuthor,
+    bookPublisher,
+    numberOfPages,
+    bookCover,
+    synopsis: synopsis.value,
+    isLoaned: false,
+    loanedTo: null
+  });
 
-  emptyBookList.remove()
-  const bookCard = document.createElement("div")
-
-  createCard(bookCard, bookName, bookAuthor, bookPublisher, numberOfPages, bookCover)
-  appendElements(listOfAllBooks, bookCard)
-
-  const remove = removeCard(listOfAllBooks)
-  listOfAllBooks.addEventListener("click", remove)
-
-  clearFields()
+  updateBookList();
+  clearFields();
 }
 
 function searchBook() {
-  const bookNameSearch = document.querySelector("#bookNameSearch").value
-  const listOfBooksSearch = document.querySelector("#listOfBooksSearch")
-  const foundBooks = document.querySelector("#foundBooks")
-  const bookCard = document.createElement("div")
+  const bookNameSearch = document.querySelector("#bookNameSearch").value;
+  const listOfBooksSearch = document.querySelector("#listOfBooksSearch");
+  const foundBooks = document.querySelector("#foundBooks");
+  const bookCard = document.createElement("div");
 
-  foundBooks.innerHTML = ""
-  listOfBooksSearch.append(foundBooks)
+  foundBooks.innerHTML = "";
+  listOfBooksSearch.append(foundBooks);
 
-  const findBook = allBooks.filter(elem => elem.bookName === bookNameSearch)
+  const findBook = allBooks.filter(elem => elem.bookName === bookNameSearch);
 
   if (findBook.length !== 0) {
     findBook.forEach(elem => {
-      createCard(bookCard, elem.bookName, elem.bookAuthor, elem.bookPublisher, elem.numberOfPages, elem.bookCover)
-      appendElements(foundBooks, bookCard)
-    })
+      createCard(bookCard, elem.bookName, elem.bookAuthor, elem.bookPublisher, elem.numberOfPages, elem.bookCover, elem.isLoaned, elem.loanedTo);
+      appendElements(foundBooks, bookCard);
+    });
   } else {
-    showError(bookNameSearch)
+    showError(bookNameSearch);
   }
 
-  const remove = removeCard(foundBooks)
-  listOfBooksSearch.addEventListener("click", remove)
-
-  clearFields()
+  clearFields();
 }
 
-btnRegister.addEventListener("click", registerBook)
-btnSearch.addEventListener("click", searchBook)
+btnRegister.addEventListener("click", registerBook);
+btnSearch.addEventListener("click", searchBook);
